@@ -10,8 +10,19 @@ using System.Windows.Media;
 
 namespace ITEMS_PIKFillRoomFinishingParams.Model
 {
+    /// <summary>
+    /// Класс статических методов для анализа геометрии и дополнительных построений
+    /// </summary>
     internal class Sculptor
     {
+        /// <summary>
+        /// Определение принадлежности перекрытия к помещению с допуском. Допуском является расстояние
+        /// от помещения до верхней грани перекрытия
+        /// </summary>
+        /// <param name="floor"></param>
+        /// <param name="room"></param>
+        /// <param name="offset"></param>
+        /// <returns></returns>
         public static bool IsFloorRelateToRoom(Element floor, Element room, double offset)
         {
             Plane floorPlane = GetPlaneFromPlanarElement(floor);
@@ -26,9 +37,14 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             return false;
         }
 
+        /// <summary>
+        /// Получение верхней горизонтальной плоскости из элемента.
+        /// </summary>
+        /// <param name="element"></param>
+        /// <returns></returns>
         private static Plane GetPlaneFromPlanarElement(Element element)
         {
-            Plane plane = null;
+            Plane plane;
             GeometryElement geometry = element.get_Geometry(new Options());
             GeometryObject geometryObject = geometry.First();
             Solid solid = geometryObject as Solid;
@@ -40,6 +56,11 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             return null;
         }
 
+        /// <summary>
+        /// Получение вертикальных отрезков на каждом углу помещения.
+        /// </summary>
+        /// <param name="room"></param>
+        /// <returns></returns>
         private static List<Line> VerticalEdgesFromRoom(Element room)
         {
             List<Line> lineList = new List<Line>();
@@ -52,6 +73,14 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             return lineList;
         }
 
+        /// <summary>
+        /// Определение пересекает ли горизонтальную плоскость данная вертикальная линия,
+        /// удленненая с обоих концов на zAcceptability футов,
+        /// </summary>
+        /// <param name="line"></param>
+        /// <param name="plane"></param>
+        /// <param name="zAcceptability"></param>
+        /// <returns></returns>
         private static bool IsLineAndPlaneIntersect(Line line, Plane plane, double zAcceptability)
         {
             if ((Math.Abs(plane.Origin.Z - line.Tessellate()[0].Z) < zAcceptability) ||

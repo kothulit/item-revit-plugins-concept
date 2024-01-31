@@ -33,10 +33,12 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         //Список перекрытий помещения
         private List<Element> _floors = new List<Element>();
 
-        //Коллекторы стен и перекрытий в проекте
+        //Коллекторы стен и перекрытий в проекте. Используются при определении ближайших к помещению элементов
+        //через фильтр по пересечению баундинг боксов. Далее эти элементы анализируются на принадлежность к помещению
         private FilteredElementCollector _wallCoolector;
         private FilteredElementCollector _floorCoolector;
 
+        //Допуск при определении пересечения геометрии, для поиска немного отстоящих от помещения элементов.
         public double _GeometryTolerance;
         public double GeometryTolerance
         {
@@ -52,6 +54,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
 
         }
 
+        //Конструктор при инициализации анализирует переданное помещение.
         public ElementSeeker(Document document, Room room, double geometryTolerance = 0.5)
         {
             Document = document;
@@ -59,6 +62,9 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             GeometryTolerance = geometryTolerance;
         }
 
+        /// <summary>
+        /// Поиск элементов принадлежащих помещению и обновновление данных о них в свойствах объекта класса
+        /// </summary>
         private void IspectGeometry()
         {
             _ElementIdListOfRoomElements = new List<ElementId>();
@@ -86,12 +92,11 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 _ElementIdListOfRoomElements.Add(element.Id);
             }
         }
+
         /// <summary>
-        /// Returns all walls from boundaryes of the room
+        /// Поиск элементов стен (из списка BoundarySegment помещения) и запись данных о них в свойства объекта класса
         /// </summary>
         /// <returns></returns>
-
-        //Create method to check is two bounding boxes intersected
         private void IntersectedWalls()
         {
             List<int> intIds = new List<int>();
@@ -115,6 +120,11 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 }
             }
         }
+
+        /// <summary>
+        /// Поиск элементов перекрытий и запись данных о них в свойства объекта класса
+        /// </summary>
+        /// <param name="offset"></param>
         private void IntersectedFloors(double offset)
         {
             BoundingBoxXYZ roomBBox = AnalyzedRoom.get_BoundingBox(null);
