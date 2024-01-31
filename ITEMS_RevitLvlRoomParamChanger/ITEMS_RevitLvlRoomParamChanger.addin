@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+	<AddIn Type="Command">
+		<Name>Замена этажа в параметрах помещений</Name>
+		<Text>Замена этажа в параметрах помещений</Text>
+		<Description>Замена этажа в параметрах помещений</Description>
+		<Assembly>ITEMS/ITEMS_RevitLvlRoomParamChanger/ITEMS_RevitLvlRoomParamChanger.dll</Assembly>
+		<FullClassName>ITEMS_RevitLvlRoomParamChanger.Command</FullClassName>
+		<ClientId>278f4981-51ed-49d0-9032-ff111c1c7409</ClientId>
+		<VendorId>ru.item-pro.bim</VendorId>
+		<VendorDescription>bim@item-pro.ru</VendorDescription>
+
+		<PluginBinaryPath>
+			<Path>ITEMS/ITEMS_RevitLvlRoomParamChanger/2021</Path>
+			<SupportedVersions>
+				<Version>2021</Version>
+			</SupportedVersions>
+		</PluginBinaryPath>
+
+		<PluginVersion>1.0.0.0</PluginVersion>
+	</AddIn>
+</RevitAddIns>
+
