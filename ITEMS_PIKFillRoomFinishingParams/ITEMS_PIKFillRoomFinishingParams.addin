@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+	<AddIn Type="Command">
+		<Name>Расчет отделки для ПИК</Name>
+		<Text>Расчет отделки для ПИК</Text>
+		<Description>Расчетывает параметры помещения необходимые для ведомости отделки ПИК</Description>
+		<Assembly>ITEMS/ITEMS_PIKFillRoomFinishingParams/ITEMS_PIKFillRoomFinishingParams.dll</Assembly>
+		<FullClassName>ITEMS_PIKFillRoomFinishingParams.Command</FullClassName>
+		<ClientId>b3584d73-f4a2-4897-ab93-6b6790a58f90</ClientId>
+		<VendorId>ru.item-pro.bim</VendorId>
+		<VendorDescription>bim@item-pro.ru</VendorDescription>
+
+		<PluginBinaryPath>
+			<Path>ITEMS/ITEMS_PIKFillRoomFinishingParams/2019</Path>
+			<SupportedVersions>
+				<Version>2019</Version>
+			</SupportedVersions>
+		</PluginBinaryPath>
+
+		<PluginVersion>1.0.0.0</PluginVersion>
+	</AddIn>
+</RevitAddIns>
+
