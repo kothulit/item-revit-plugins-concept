@@ -21,22 +21,36 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         public Room AnalyzedRoom { get; }
         //Список Id элементов, которые относятся к анализируемому помещению
         private List<ElementId> _ElementIdListOfRoomElements;
-        public List<ElementId> ElementIdListOfRoomElements
+        //Список стен помещения
+        private List<Element> _walls = new List<Element>();
+        public List<Element> Walls
         {
             get
             {
-                return _ElementIdListOfRoomElements;
+                return _walls;
             }
         }
-        //Список стен помещения
-        private List<Element> _walls = new List<Element>();
         //Список перекрытий помещения
         private List<Element> _floors = new List<Element>();
-
+        public List<Element> Floors
+        {
+            get
+            {
+                return _floors;
+            }
+        }
+        //Название параметра элемента, куда записывает номер помещения
+        private string paramerNameOfRoomNymber = "Плагин_Номер помещения";
         //Коллекторы стен и перекрытий в проекте. Используются при определении ближайших к помещению элементов
         //через фильтр по пересечению баундинг боксов. Далее эти элементы анализируются на принадлежность к помещению
         private FilteredElementCollector _wallCoolector;
         private FilteredElementCollector _floorCoolector;
+
+        //Параметр группы модели для определения относится елемент к отделке или нет
+        private string _isFinishingParamName = "Группа модели";
+        private string _isFinishingParamWallValue = "Отделка";
+        private string _isFinishingParamFloorValue = "перекрытие архитектурное";
+
 
         //Допуск при определении пересечения геометрии, для поиска немного отстоящих от помещения элементов.
         public double _GeometryTolerance;
@@ -55,7 +69,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         }
 
         //Конструктор при инициализации анализирует переданное помещение.
-        public ElementSeeker(Document document, Room room, double geometryTolerance = 0.5)
+        public ElementSeeker(Document document, Room room, double geometryTolerance = 0.3)
         {
             Document = document;
             AnalyzedRoom = room;
@@ -67,7 +81,6 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         /// </summary>
         private void IspectGeometry()
         {
-            _ElementIdListOfRoomElements = new List<ElementId>();
             _walls = new List<Element>();
             _floors = new List<Element>();
 
@@ -80,17 +93,34 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 WhereElementIsNotElementType().
                 OfCategory(BuiltInCategory.OST_Floors).
                 OfClass(typeof(Floor));
+
             IntersectedWalls();
             IntersectedFloors(_GeometryTolerance);
 
+            List<Element> wallsResualt = new List<Element>();
+            List<Element> floorsResualt = new List<Element>();
+
             foreach (Element element in _walls)
             {
-                _ElementIdListOfRoomElements.Add(element.Id);
+                bool isFinishing = Document.GetElement(element.GetTypeId()).LookupParameter(_isFinishingParamName)?.AsString() == _isFinishingParamWallValue;
+                if (isFinishing)
+                {
+                    wallsResualt.Add(element);
+                    element.LookupParameter(paramerNameOfRoomNymber)?.Set(AnalyzedRoom.Number.ToString());
+                }
             }
             foreach (Element element in _floors)
             {
-                _ElementIdListOfRoomElements.Add(element.Id);
+                bool isFinishing = Document.GetElement(element.GetTypeId()).LookupParameter(_isFinishingParamName)?.AsString() == _isFinishingParamFloorValue;
+                if (isFinishing)
+                {
+                    floorsResualt.Add(element);
+                    element.LookupParameter(paramerNameOfRoomNymber)?.Set(AnalyzedRoom.Number.ToString());
+                }
             }
+
+            _walls = wallsResualt;
+            _floors = floorsResualt;
         }
 
         /// <summary>
@@ -143,8 +173,8 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 }
             }
 
-            //Вывод проверочных данных
-            TaskDialog.Show("Intersected walls and floors count: ", _walls.Count().ToString() + "\n" + _floors.Count().ToString());
+            //DEBUG!!! Вывод проверочных данных
+            //TaskDialog.Show("Intersected walls and floors count: ", _walls.Count().ToString() + "\n" + _floors.Count().ToString());
         }
 
     }
