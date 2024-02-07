@@ -90,7 +90,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         public void SetRoomFinishingParams()
         {
             Element room = _ElementSeeker.AnalyzedRoom;
-
+            ClearRoomParams(room);
             foreach (KeyValuePair<string, FinishingData> keyValuePair in _roomFinishingData)
             {
                 if (keyValuePair.Value.Name != "")
@@ -108,6 +108,15 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             WriteFinishingParamsFromFloors();
         }
 
+        private void ClearRoomParams(Element room)
+        {
+            foreach (KeyValuePair<string, FinishingData> keyValuePair in _roomFinishingData)
+            {
+                if (keyValuePair.Value.NameParameter != "") room.LookupParameter(keyValuePair.Value.NameParameter)?.Set("");
+                if (keyValuePair.Value.MarkParameter != "") room.LookupParameter(keyValuePair.Value.MarkParameter)?.Set("");
+                if (keyValuePair.Value.ValueParameter != "") room.LookupParameter(keyValuePair.Value.ValueParameter)?.Set(0);
+            }
+        }
         private void WriteFinishingParamsFromWalls()
         {
             List<Element> wallList = _ElementSeeker.Walls;
@@ -130,7 +139,8 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                     string plinthMark = wallType.LookupParameter(_wallParamNamePlinthTypeMark)?.AsString();
                     double plinthValue = wall.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH).AsDouble() * 304.8; //Перевод в миллиметры
 
-                    if (finishingType != null) _roomFinishingData[finishingGroupe].Name += finishingType;
+                    if (finishingType != null) 
+                        if (!_roomFinishingData[finishingGroupe].Name.Contains(finishingType)) _roomFinishingData[finishingGroupe].Name += finishingType;
                     _roomFinishingData[finishingGroupe].Value += finishingValue;
 
                     if (decorationType != null)
