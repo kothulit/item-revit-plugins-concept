@@ -48,8 +48,8 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
 
         //Параметр группы модели для определения относится елемент к отделке или нет
         private string _isFinishingParamName = "Группа модели";
-        private string _isFinishingParamWallValue = "Отделка";
-        private string _isFinishingParamFloorValue = "перекрытие архитектурное";
+        private List<string> _isFinishingParamWallValue = new List<string>() { "Отделка" };
+        private List<string> _isFinishingParamFloorValue = new List<string>() { "перекрытие архитектурное", "Перекрытие архитектурное", "Потолок", "Пол" };
 
 
         //Допуск при определении пересечения геометрии, для поиска немного отстоящих от помещения элементов.
@@ -63,7 +63,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             set
             {
                 _GeometryTolerance = value;
-                IspectGeometry();
+                InspectGeometry();
             }
 
         }
@@ -79,20 +79,13 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         /// <summary>
         /// Поиск элементов принадлежащих помещению и обновновление данных о них в свойствах объекта класса
         /// </summary>
-        private void IspectGeometry()
+        private void InspectGeometry()
         {
             _walls = new List<Element>();
             _floors = new List<Element>();
 
-            _wallCoolector = new FilteredElementCollector(Document).
-                    WhereElementIsNotElementType().
-                    OfCategory(BuiltInCategory.OST_Walls).
-                    OfClass(typeof(Wall));
-
-            _floorCoolector = new FilteredElementCollector(Document).
-                WhereElementIsNotElementType().
-                OfCategory(BuiltInCategory.OST_Floors).
-                OfClass(typeof(Floor));
+            SetWallCollector();
+            SetFloorCollector();
 
             IntersectedWalls();
             IntersectedFloors(_GeometryTolerance);
@@ -102,7 +95,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
 
             foreach (Element element in _walls)
             {
-                bool isFinishing = Document.GetElement(element.GetTypeId()).LookupParameter(_isFinishingParamName)?.AsString() == _isFinishingParamWallValue;
+                bool isFinishing = _isFinishingParamWallValue.Contains(Document.GetElement(element.GetTypeId()).LookupParameter(_isFinishingParamName).AsString());
                 if (isFinishing)
                 {
                     wallsResualt.Add(element);
@@ -111,7 +104,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             }
             foreach (Element element in _floors)
             {
-                bool isFinishing = Document.GetElement(element.GetTypeId()).LookupParameter(_isFinishingParamName)?.AsString() == _isFinishingParamFloorValue;
+                bool isFinishing = _isFinishingParamFloorValue.Contains(Document.GetElement(element.GetTypeId()).LookupParameter(_isFinishingParamName).AsString());
                 if (isFinishing)
                 {
                     floorsResualt.Add(element);
@@ -175,6 +168,30 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
 
             //DEBUG!!! Вывод проверочных данных
             //TaskDialog.Show("Intersected walls and floors count: ", _walls.Count().ToString() + "\n" + _floors.Count().ToString());
+        }
+
+        /// <summary>
+        /// Метод для записи в поле класса коллекции стен
+        /// </summary>
+        private void SetWallCollector()
+        {
+            _wallCoolector = new FilteredElementCollector(Document).
+                WhereElementIsNotElementType().
+                OfCategory(BuiltInCategory.OST_Walls).
+                OfClass(typeof(Wall));
+        }
+
+        /// <summary>
+        /// Метод для записи в поле класса коллекции потолков и перекрытий
+        /// </summary>
+        private void SetFloorCollector()
+        {
+            LogicalOrFilter classFilter = new LogicalOrFilter(new ElementClassFilter(typeof(Floor)), new ElementClassFilter(typeof(Ceiling)));
+            LogicalOrFilter categoryFilter = new LogicalOrFilter(new ElementCategoryFilter(BuiltInCategory.OST_Floors), new ElementCategoryFilter(BuiltInCategory.OST_Ceilings));
+            _floorCoolector = new FilteredElementCollector(Document).
+                WhereElementIsNotElementType().
+                WherePasses(categoryFilter).
+                WherePasses(classFilter);
         }
 
     }

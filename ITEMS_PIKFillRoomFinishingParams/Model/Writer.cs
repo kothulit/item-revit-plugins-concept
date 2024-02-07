@@ -78,7 +78,11 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             }
             if (_ElementSeeker.Floors.Count > 0)
             {
-                if (!CheckFloorParametersIsOk(_ElementSeeker.Floors.First())) return;
+                foreach (Element floor in _ElementSeeker.Floors)
+                {
+                    if (!CheckFloorParametersIsOk(floor)) return;
+                }
+
             }
             if (!CheckRoomParametersIsOk(_ElementSeeker.AnalyzedRoom)) return;
 
@@ -139,7 +143,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                     string plinthMark = wallType.LookupParameter(_wallParamNamePlinthTypeMark)?.AsString();
                     double plinthValue = wall.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH).AsDouble() * 304.8; //Перевод в миллиметры
 
-                    if (finishingType != null) 
+                    if (finishingType != null)
                         if (!_roomFinishingData[finishingGroupe].Name.Contains(finishingType)) _roomFinishingData[finishingGroupe].Name += finishingType;
                     _roomFinishingData[finishingGroupe].Value += finishingValue;
 
