@@ -95,7 +95,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             _walls = new List<Element>();
             _floors = new List<Element>();
 
-            SetWallAndDoorCollector();
+            SetWallCollector();
             SetFloorCollector();
 
             SetIntersectedWalls();
@@ -131,42 +131,43 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         /// Поиск элементов стен (из списка BoundarySegment помещения) и запись данных о них в свойства объекта класса
         /// </summary>
         /// <returns></returns>
-        //private void IntersectedWalls()
-        //{
-        //    List<int> intIds = new List<int>();
-        //    foreach (List<BoundarySegment> boundarySegmentList in AnalyzedRoom.GetBoundarySegments(new SpatialElementBoundaryOptions()))
-        //    {
-        //        foreach (BoundarySegment boundarySegment in boundarySegmentList)
-        //        {
-        //            Element boundaryElement = Document.GetElement(boundarySegment.ElementId);
-        //            if (boundaryElement != null)
-        //            {
-        //                if (boundaryElement.Category.Id.IntegerValue == ((int)BuiltInCategory.OST_Walls))
-        //                {
-
-        //                    if (!intIds.Contains(boundaryElement.Id.IntegerValue))
-        //                    {
-        //                        intIds.Add(boundaryElement.Id.IntegerValue);
-        //                        _walls.Add(boundaryElement);
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-        //}
-
         private void SetIntersectedWalls()
         {
-            List<int> intIds = new List<int>();
+            //Проверка на геометрическое пересечение и добавление в список таких стен
             foreach (Element wall in _wallCoolector.ToElements())
             {
                 _walls.Add(wall);
-                List<Element> doorsInWall = new FilteredElementCollector(Document, _doorCoolector.ToElementIds()).
-                    WherePasses(new ElementIntersectsElementFilter(wall)).
-                    ToElements().
-                    ToList();
-                if(!_DoorsInWalls.Keys.Contains(wall.Id))
-                    _DoorsInWalls.Add(wall.Id, doorsInWall);
+                if (_doorCoolector.Count() > 0)
+                {
+                    List<Element> doorsInWall = new FilteredElementCollector(Document, _doorCoolector.ToElementIds()).
+                        WherePasses(new ElementIntersectsElementFilter(wall)).
+                        ToElements().
+                        ToList();
+                    if (!_DoorsInWalls.Keys.Contains(wall.Id))
+                        _DoorsInWalls.Add(wall.Id, doorsInWall);
+                }
+            }
+
+            //Добавление в список стен ограничивающиех помещение
+            List<int> intIds = new List<int>();
+            foreach (List<BoundarySegment> boundarySegmentList in AnalyzedRoom.GetBoundarySegments(new SpatialElementBoundaryOptions()))
+            {
+                foreach (BoundarySegment boundarySegment in boundarySegmentList)
+                {
+                    Element boundaryElement = Document.GetElement(boundarySegment.ElementId);
+                    if (boundaryElement != null)
+                    {
+                        if (boundaryElement.Category.Id.IntegerValue == ((int)BuiltInCategory.OST_Walls))
+                        {
+
+                            if (!intIds.Contains(boundaryElement.Id.IntegerValue))
+                            {
+                                intIds.Add(boundaryElement.Id.IntegerValue);
+                                _walls.Add(boundaryElement);
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -199,13 +200,11 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         /// <summary>
         /// Метод для записи в поле класса коллекции стен
         /// </summary>
-        private void SetWallAndDoorCollector()
+        private void SetWallCollector()
         {
             Outline outline = new Outline(AnalyzedRoom.get_BoundingBox(null).Min, AnalyzedRoom.get_BoundingBox(null).Max);
             BoundingBoxIntersectsFilter boundingBoxIntersectsFilter = new BoundingBoxIntersectsFilter(outline, 0.35);
             Solid solid = AnalyzedRoom.get_Geometry(new Options()).First() as Solid;
-
-
             ElementIntersectsSolidFilter solidFilter = new ElementIntersectsSolidFilter(solid);
 
             _wallCoolector = new FilteredElementCollector(Document).
@@ -237,12 +236,19 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 WherePasses(classFilter);
         }
 
-        //private void SetDoorCollector()
-        //{
-        //    _doorCoolector = new FilteredElementCollector(Document).
-        //        WhereElementIsNotElementType().
-        //        OfCategory(BuiltInCategory.OST_Doors).
-        //        OfClass(typeof(FamilyInstance));
-        //}
+        private void SetDoorCollector()
+        {
+            Outline outline = new Outline(AnalyzedRoom.get_BoundingBox(null).Min, AnalyzedRoom.get_BoundingBox(null).Max);
+            BoundingBoxIntersectsFilter boundingBoxIntersectsFilter = new BoundingBoxIntersectsFilter(outline, 0.35);
+            Solid solid = AnalyzedRoom.get_Geometry(new Options()).First() as Solid;
+            ElementIntersectsSolidFilter solidFilter = new ElementIntersectsSolidFilter(solid);
+
+            _doorCoolector = new FilteredElementCollector(Document).
+                WhereElementIsNotElementType().
+                OfCategory(BuiltInCategory.OST_Doors).
+                OfClass(typeof(FamilyInstance)).
+                WherePasses(boundingBoxIntersectsFilter).
+                WherePasses(solidFilter);
+        }
     }
 }

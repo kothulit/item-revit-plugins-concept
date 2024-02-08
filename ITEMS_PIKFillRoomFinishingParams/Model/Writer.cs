@@ -75,18 +75,29 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             _ElementSeeker = elementSeeker;
             if (_ElementSeeker.Walls.Count > 0)
             {
-                if (!CheckWallParametersIsOk(_ElementSeeker.Walls.First())) return;
+                if (!CheckWallParametersIsOk(_ElementSeeker.Walls.First()))
+                {
+                    _IsOk = false;
+                    return;
+                }
             }
             if (_ElementSeeker.Floors.Count > 0)
             {
                 foreach (Element floor in _ElementSeeker.Floors)
                 {
-                    _IsOk = false;
-                    return;
+                    if (!CheckFloorParametersIsOk(floor))
+                    {
+                        _IsOk = false;
+                        return;
+                    }
                 }
 
             }
-            if (!CheckRoomParametersIsOk(_ElementSeeker.AnalyzedRoom)) return;
+            if (!CheckRoomParametersIsOk(_ElementSeeker.AnalyzedRoom))
+            {
+                _IsOk = false;
+                return;
+            }
 
             WtiteFinishingData();
         }
@@ -287,12 +298,15 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         }
         private void ShowParameterErrorDialog(Element element, string parameterName)
         {
-            string text = element.Category.Name.ToString() + ": " + parameterName;
-            TaskDialog.Show("ОШИБКА! Отсутствует параметр", text + "\n" + "ID элемента: " + element.Id.ToString());
+            string elementText = "ID элемента: " + element.Id.ToString();
+            string parameterText = element.Category.Name.ToString() + ": " + parameterName;
+            TaskDialog.Show("ОШИБКА! Отсутствует параметр", parameterText + "\n" + elementText);
         }
         private void ShowParameterValueErrorDialog(Element element, string parameterName, string parameterValue)
         {
-            TaskDialog.Show("ОШИБКА! Неправильно заполнен параметр", parameterName + ": " + parameterValue + "\n" + "ID элемента: " + element.Id.ToString());
+            string elementText = "ID элемента: " + element.Id.ToString();
+            string parameterText = parameterName + ": " + parameterValue;
+            TaskDialog.Show("ОШИБКА! Неправильно заполнен параметр", parameterText + "\n" + elementText);
         }
     }
 }
