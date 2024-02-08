@@ -6,13 +6,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace ITEMS_PIKFillRoomFinishingParams.Model
 {
     internal class Writer
     {
         //Статус объекта
-        private bool _IsOk = false;
+        private bool _IsOk = true;
         public bool IsOk { get { return _IsOk; } }
 
         //Параметры группы эелементов отделки
@@ -53,12 +54,12 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             {"ОТД_Стены_Отделка_Акотэк", new FinishingData(             "ОТД_Стены_Отделка_Акотэк",             "",                         "ОТД_Стены_Площ_Акотэк")},
             {"ОТД_Стены_Отделка_Чистовая", new FinishingData(           "ОТД_Стены_Отделка_Чистовая",           "ОТД_Стены_Марка_Чистовая", "ОТД_Стены_Площ_Чистовая")},
             {"ОТД_Стены_Отделка_Фартук", new FinishingData(             "ОТД_Стены_Отделка_Фартук",             "ОТД_Стены_Марка_Фартук",   "ОТД_Стены_Площ_Фартук")},
-            {"ОТД_Лестницы_Отделка_Низ марша", new FinishingData(       "ОТД_Лестницы_Отделка_Низ марша",       "",                         "ОТД_Лестницы_Площ_Низ марша")},
-            {"ОТД_Лестницы_Отделка_Торец марша", new FinishingData(     "ОТД_Лестницы_Отделка_Торец марша",     "",                         "ОТД_Лестницы_Площ_Торец марша")},
-            {"ОТД_Лестницы_Отделка_Подступенок", new FinishingData(     "ОТД_Лестницы_Отделка_Подступенок",     "",                         "ОТД_Лестницы_Площ_Подступенок")},
-            {"ОТД_Лестницы_Отделка_Проступь", new FinishingData(        "ОТД_Лестницы_Отделка_Проступь",        "",                         "ОТД_Лестницы_Площ_Проступь")},
-            {"ОТД_Лестницы_Отделка_Низ площадки", new FinishingData(    "ОТД_Лестницы_Отделка_Низ площадки",    "",                         "ОТД_Лестницы_Площ_Низ площадки")},
-            {"ОТД_Лестницы_Отделка_Торец площадки", new FinishingData(  "ОТД_Лестницы_Отделка_Торец площадки",  "",                         "ОТД_Лестницы_Площ_Торец площадки")},
+            //{"ОТД_Лестницы_Отделка_Низ марша", new FinishingData(       "ОТД_Лестницы_Отделка_Низ марша",       "",                         "ОТД_Лестницы_Площ_Низ марша")},
+            //{"ОТД_Лестницы_Отделка_Торец марша", new FinishingData(     "ОТД_Лестницы_Отделка_Торец марша",     "",                         "ОТД_Лестницы_Площ_Торец марша")},
+            //{"ОТД_Лестницы_Отделка_Подступенок", new FinishingData(     "ОТД_Лестницы_Отделка_Подступенок",     "",                         "ОТД_Лестницы_Площ_Подступенок")},
+            //{"ОТД_Лестницы_Отделка_Проступь", new FinishingData(        "ОТД_Лестницы_Отделка_Проступь",        "",                         "ОТД_Лестницы_Площ_Проступь")},
+            //{"ОТД_Лестницы_Отделка_Низ площадки", new FinishingData(    "ОТД_Лестницы_Отделка_Низ площадки",    "",                         "ОТД_Лестницы_Площ_Низ площадки")},
+            //{"ОТД_Лестницы_Отделка_Торец площадки", new FinishingData(  "ОТД_Лестницы_Отделка_Торец площадки",  "",                         "ОТД_Лестницы_Площ_Торец площадки")},
             {"ОТД_Потолки_Отделка_ТИП1", new FinishingData(             "ОТД_Потолки_Отделка_ТИП1",             "ОТД_Потолки_Марка_ТИП1",   "ОТД_Потолки_Площ_ТИП1")},
             {"ОТД_Потолки_Отделка_ТИП2", new FinishingData(             "ОТД_Потолки_Отделка_ТИП2",             "ОТД_Потолки_Марка_ТИП2",   "ОТД_Потолки_Площ_ТИП2")},
             {"ОТД_Потолки_Отделка_ТИП3", new FinishingData(             "ОТД_Потолки_Отделка_ТИП3",             "ОТД_Потолки_Марка_ТИП3",   "ОТД_Потолки_Площ_ТИП3")},
@@ -80,15 +81,14 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             {
                 foreach (Element floor in _ElementSeeker.Floors)
                 {
-                    if (!CheckFloorParametersIsOk(floor)) return;
+                    _IsOk = false;
+                    return;
                 }
 
             }
             if (!CheckRoomParametersIsOk(_ElementSeeker.AnalyzedRoom)) return;
 
             WtiteFinishingData();
-
-            _IsOk = true;
         }
 
         public void SetRoomFinishingParams()
@@ -128,6 +128,14 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             {
                 Element wallType = _ElementSeeker.Document.GetElement(wall.GetTypeId());
                 string finishingGroupe = wallType.LookupParameter(_elemParamNameFinishingGroupe)?.AsString();
+
+                //Проверка параметра группы отделки, если не ок то заканчиваем работу
+                if (!_roomFinishingData.Keys.Contains(finishingGroupe))
+                {
+                    ShowParameterValueErrorDialog(wall, _elemParamNameFinishingGroupe, (finishingGroupe != null) ? finishingGroupe : "пустое значение");
+                    _IsOk = false;
+                    return;
+                }
 
                 if (finishingGroupe != null)
                 {
@@ -175,6 +183,16 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 Element floorType = _ElementSeeker.Document.GetElement(floor.GetTypeId());
 
                 string finishingGroupe = floorType.LookupParameter(_elemParamNameFinishingGroupe)?.AsString();
+
+
+                //Проверка параметра группы отделки, если не ок то заканчиваем работу
+                if (!_roomFinishingData.Keys.Contains(finishingGroupe))
+                {
+                    ShowParameterValueErrorDialog(floor, _elemParamNameFinishingGroupe, (finishingGroupe != null) ? finishingGroupe : "пустое значение");
+                    _IsOk = false;
+                    return;
+                }
+
                 if (finishingGroupe != null)
                 {
                     string finishingType = floorType.LookupParameter(_wallParamNameFloorTypeName)?.AsString();
@@ -182,10 +200,10 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                     double finishingValue = floor.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED).AsDouble();
 
                     if (finishingType != null)
+                    {
                         if (!_roomFinishingData[finishingGroupe].Name.Contains(finishingType))
-                        {
                             _roomFinishingData[finishingGroupe].Name += " " + finishingType;
-                        }
+                    }
                     if (finishingMark != null)
                         if (!_roomFinishingData[finishingGroupe].Mark.Contains(finishingMark))
                         {
@@ -270,7 +288,11 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         private void ShowParameterErrorDialog(Element element, string parameterName)
         {
             string text = element.Category.Name.ToString() + ": " + parameterName;
-            TaskDialog.Show("Отсутствует параметр", text);
+            TaskDialog.Show("ОШИБКА! Отсутствует параметр", text + "\n" + "ID элемента: " + element.Id.ToString());
+        }
+        private void ShowParameterValueErrorDialog(Element element, string parameterName, string parameterValue)
+        {
+            TaskDialog.Show("ОШИБКА! Неправильно заполнен параметр", parameterName + ": " + parameterValue + "\n" + "ID элемента: " + element.Id.ToString());
         }
     }
 }
