@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.DB.Visual;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Events;
 using Autodesk.Revit.UI.Selection;
@@ -20,7 +21,10 @@ namespace ITEMS_PIKFillRoomFinishingParams
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            var startTime = DateTime.Now;
+
             Document document = commandData.Application.ActiveUIDocument.Document;
+
 
             //Список помещений для анализа
             List<Room> rooms = new FilteredElementCollector(document).
@@ -28,6 +32,7 @@ namespace ITEMS_PIKFillRoomFinishingParams
                 WherePasses(new RoomFilter()).
                 ToElements().Cast<Room>().ToList();
 
+            
 
             using (Transaction t = new Transaction(document, "Заполнение  параметров отделки  помещениях"))
             {
@@ -40,12 +45,24 @@ namespace ITEMS_PIKFillRoomFinishingParams
                 }
                 else
                 {
+                    bool isOk = true;
                     foreach (Room room in rooms)
                     {
-                        ElementSeeker seeker = new ElementSeeker(document, room);
-                        Writer writer = new Writer(seeker);
-                        if (!writer.IsOk) return Result.Failed;
+                        Writer writer = new Writer(document, room);
                         writer.SetRoomFinishingParams();
+                        if (isOk) isOk = writer.IsOk;
+                    }
+
+                    if (isOk)
+                    {
+                        TaskDialog.Show("ОШИБКА!", "Плагин закончил работу с ошибками.\r\n" +
+                            "Проверьте наличие и значения параметра \"Плагин_Ошибки в отделке\" в экземплярах Помещений, Перекрытий, Потолков, Дверей и Стен \r\n" +
+                            "Время работы плагина: " + ((int)(DateTime.Now - startTime).TotalSeconds).ToString() + " секунд");
+                    }
+                    else
+                    {
+                        TaskDialog.Show("ВЫПОЛНЕНО!", "Плагин закончил работу без ошибок.\r\n" +
+                            "Время работы плагина: " + ((int)(DateTime.Now - startTime).TotalSeconds).ToString() + " секунд");
                     }
                 }
                 t.Commit();

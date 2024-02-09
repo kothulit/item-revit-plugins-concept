@@ -1,4 +1,5 @@
 ﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Visual;
 using Autodesk.Revit.UI;
 using System;
@@ -6,6 +7,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Xml.Linq;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace ITEMS_PIKFillRoomFinishingParams.Model
@@ -15,6 +18,9 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         //Статус объекта
         private bool _IsOk = true;
         public bool IsOk { get { return _IsOk; } }
+        //Название параметра элемента, куда записывает номер помещения. Для анализа работы плагина
+        private string _parameterNameOfRoomNymber = "Плагин_Номер помещения";
+        private string _errorParam = "Плагин_Ошибки в отделке";
 
         //Параметры группы эелементов отделки
         private string _elemParamNameFinishingGroupe = "ITEM_Группа отделки";
@@ -70,50 +76,75 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             {"ОТД_Полы_Отделка_Плинтус", new FinishingData(             "ОТД_Полы_Отделка_Плинтус",             "ОТД_Полы_Марка_Плинтус",   "ОТД_Полы_Длина_Плинтус")},
         };
 
-        public Writer(ElementSeeker elementSeeker)
+        public Writer(Document document, Room room, double geometryTolerance = 0.3)
         {
-            _ElementSeeker = elementSeeker;
-            if (_ElementSeeker.Walls.Count > 0)
+            try
             {
-                if (!CheckWallParametersIsOk(_ElementSeeker.Walls.First()))
+                _ElementSeeker = new ElementSeeker(document, room, geometryTolerance);
+                if (_ElementSeeker == null)
                 {
                     _IsOk = false;
                     return;
                 }
-            }
-            if (_ElementSeeker.Floors.Count > 0)
-            {
-                foreach (Element floor in _ElementSeeker.Floors)
+                if (_ElementSeeker.Walls.Count > 0)
                 {
-                    if (!CheckFloorParametersIsOk(floor))
+                    if (!CheckWallParametersIsOk(_ElementSeeker.Walls.First()))
                     {
-                        _IsOk = false;
                         return;
                     }
                 }
+                if (_ElementSeeker.Floors.Count > 0)
+                {
+                    foreach (Element floor in _ElementSeeker.Floors)
+                    {
+                        if (!CheckFloorParametersIsOk(floor))
+                        {
+                            return;
+                        }
+                    }
+                }
+                if (!CheckRoomParametersIsOk(_ElementSeeker.AnalyzedRoom))
+                {
+                    return;
+                }
 
+                WtiteFinishingData();
+                WriteRoomInElements(); //DEBUG!!! для проверки правильности определения элемента в помищении
             }
-            if (!CheckRoomParametersIsOk(_ElementSeeker.AnalyzedRoom))
+            catch (Exception ex)
             {
-                _IsOk = false;
-                return;
+                ShowParameterValueErrorDialog(room, ex);
             }
-
-            WtiteFinishingData();
         }
 
         public void SetRoomFinishingParams()
         {
-            Element room = _ElementSeeker.AnalyzedRoom;
-            ClearRoomParams(room);
-            foreach (KeyValuePair<string, FinishingData> keyValuePair in _roomFinishingData)
+            try
             {
-                if (keyValuePair.Value.Name != "")
+                //Очистка записей в элементах отделки и дверях
+                foreach (Element element in _ElementSeeker.Walls) ClearFinishingElementParams(element);
+                foreach (Element element in _ElementSeeker.Floors) ClearFinishingElementParams(element);
+                foreach (var pair in _ElementSeeker.DoorsInWalls)
                 {
-                    room.LookupParameter(keyValuePair.Value.NameParameter)?.Set(keyValuePair.Value.Name);
-                    room.LookupParameter(keyValuePair.Value.MarkParameter)?.Set(keyValuePair.Value.Mark);
-                    room.LookupParameter(keyValuePair.Value.ValueParameter)?.Set(keyValuePair.Value.Value);
+                    foreach (Element element in pair.Value) ClearFinishingElementParams(element);
                 }
+
+                //Очистка парметров помещения
+                Element room = _ElementSeeker.AnalyzedRoom;
+                ClearRoomParams(room);
+                foreach (KeyValuePair<string, FinishingData> keyValuePair in _roomFinishingData)
+                {
+                    if (keyValuePair.Value.Name != "")
+                    {
+                        room.LookupParameter(keyValuePair.Value.NameParameter)?.Set(keyValuePair.Value.Name);
+                        room.LookupParameter(keyValuePair.Value.MarkParameter)?.Set(keyValuePair.Value.Mark);
+                        room.LookupParameter(keyValuePair.Value.ValueParameter)?.Set(keyValuePair.Value.Value);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowParameterValueErrorDialog(_ElementSeeker.AnalyzedRoom, ex);
             }
         }
 
@@ -123,6 +154,11 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             WriteFinishingParamsFromFloors();
         }
 
+        private void ClearFinishingElementParams(Element element)
+        {
+            element.LookupParameter(_parameterNameOfRoomNymber)?.Set("");
+            element.LookupParameter(_errorParam)?.Set("");
+        }
         private void ClearRoomParams(Element room)
         {
             foreach (KeyValuePair<string, FinishingData> keyValuePair in _roomFinishingData)
@@ -191,36 +227,42 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             List<Element> floors = _ElementSeeker.Floors;
             foreach (Element floor in floors)
             {
-                Element floorType = _ElementSeeker.Document.GetElement(floor.GetTypeId());
-
-                string finishingGroupe = floorType.LookupParameter(_elemParamNameFinishingGroupe)?.AsString();
-
-
-                //Проверка параметра группы отделки, если не ок то заканчиваем работу
-                if (!_roomFinishingData.Keys.Contains(finishingGroupe))
+                try
                 {
-                    ShowParameterValueErrorDialog(floor, _elemParamNameFinishingGroupe, (finishingGroupe != null) ? finishingGroupe : "пустое значение");
-                    _IsOk = false;
-                    return;
-                }
+                    Element floorType = _ElementSeeker.Document.GetElement(floor.GetTypeId());
 
-                if (finishingGroupe != null)
-                {
-                    string finishingType = floorType.LookupParameter(_wallParamNameFloorTypeName)?.AsString();
-                    string finishingMark = floorType.LookupParameter(_wallParamNameFloorTypeMark)?.AsString();
-                    double finishingValue = floor.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED).AsDouble();
+                    string finishingGroupe = floorType.LookupParameter(_elemParamNameFinishingGroupe)?.AsString();
 
-                    if (finishingType != null)
+
+                    //Проверка параметра группы отделки, если не ок то заканчиваем работу
+                    if (!_roomFinishingData.Keys.Contains(finishingGroupe))
                     {
-                        if (!_roomFinishingData[finishingGroupe].Name.Contains(finishingType))
-                            _roomFinishingData[finishingGroupe].Name += " " + finishingType;
+                        ShowParameterValueErrorDialog(floor, _elemParamNameFinishingGroupe, (finishingGroupe != null) ? finishingGroupe : "пустое значение");
+
                     }
-                    if (finishingMark != null)
-                        if (!_roomFinishingData[finishingGroupe].Mark.Contains(finishingMark))
+
+                    if (finishingGroupe != null)
+                    {
+                        string finishingType = floorType.LookupParameter(_wallParamNameFloorTypeName)?.AsString();
+                        string finishingMark = floorType.LookupParameter(_wallParamNameFloorTypeMark)?.AsString();
+                        double finishingValue = floor.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED).AsDouble();
+
+                        if (finishingType != null)
                         {
-                            _roomFinishingData[finishingGroupe].Mark += " " + finishingMark;
+                            if (!_roomFinishingData[finishingGroupe].Name.Contains(finishingType))
+                                _roomFinishingData[finishingGroupe].Name += " " + finishingType;
                         }
-                    _roomFinishingData[finishingGroupe].Value += finishingValue;
+                        if (finishingMark != null)
+                            if (!_roomFinishingData[finishingGroupe].Mark.Contains(finishingMark))
+                            {
+                                _roomFinishingData[finishingGroupe].Mark += " " + finishingMark;
+                            }
+                        _roomFinishingData[finishingGroupe].Value += finishingValue;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ShowParameterValueErrorDialog(floor, ex);
                 }
             }
         }
@@ -296,17 +338,79 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             }
             return true;
         }
-        private void ShowParameterErrorDialog(Element element, string parameterName)
+        private void ShowParameterErrorDialog(Element element, string parameterName) //Привести к одному методу
         {
             string elementText = "ID элемента: " + element.Id.ToString();
             string parameterText = element.Category.Name.ToString() + ": " + parameterName;
-            TaskDialog.Show("ОШИБКА! Отсутствует параметр", parameterText + "\n" + elementText);
+            //TaskDialog.Show("ОШИБКА! Отсутствует параметр", parameterText + "\n" + elementText); //!!! Пока  не вызывать окно ошибки
+            //Clipboard.SetText(element.Id.ToString()); //!!! Пока  не вызывать окно ошибки
+
+            string value = "";
+            if (element.LookupParameter(_errorParam) != null) value = element.LookupParameter(_errorParam).AsString();
+            element.LookupParameter(_errorParam)?.Set(value + elementText + parameterText);
+            _IsOk = false;
         }
-        private void ShowParameterValueErrorDialog(Element element, string parameterName, string parameterValue)
+        private void ShowParameterValueErrorDialog(Element element, string parameterName, string parameterValue) //!!! Привести к одному методу
         {
             string elementText = "ID элемента: " + element.Id.ToString();
             string parameterText = parameterName + ": " + parameterValue;
-            TaskDialog.Show("ОШИБКА! Неправильно заполнен параметр", parameterText + "\n" + elementText);
+            //TaskDialog.Show("ОШИБКА! Неправильно заполнен параметр", parameterText + "\n" + elementText); //!!! Пока  не вызывать окно ошибки
+            //Clipboard.SetText(element.Id.ToString()); //!!! Пока  не вызывать окно ошибки
+            string value = "";
+            if (element.LookupParameter(_errorParam) != null) value = element.LookupParameter(_errorParam).AsString();
+            element.LookupParameter(_errorParam)?.Set(value + elementText + parameterText);
+            _IsOk = false;
+        }
+
+        private void ShowParameterValueErrorDialog(Element element, Exception exception) //!!! Привести к одному методу
+        {
+            string elementText = "ID элемента: " + element.Id.ToString();
+            string exceptionText = exception.Source.ToString() + exception.Message;
+            //TaskDialog.Show("ОШИБКА! Исключение", exceptionText + "\n" + elementText); //!!! Пока  не вызывать окно ошибки
+            //Clipboard.SetText(element.Id.ToString()); //!!! Пока  не вызывать окно ошибки
+            string value = "";
+            if (element.LookupParameter(_errorParam) != null) value = element.LookupParameter(_errorParam).AsString();
+            element.LookupParameter(_errorParam)?.Set(value + elementText + exceptionText);
+            _IsOk = false;
+        }
+
+        private void WriteRoomInElements() ///DEBUG!!! Переделать в номальный метод, без повторений
+        {
+            string roomData = String.Format("Помещение: Имя {0} Номер {1} ID {2}",
+                _ElementSeeker.AnalyzedRoom.Name.ToString(),
+                _ElementSeeker.AnalyzedRoom.Number.ToString(),
+                _ElementSeeker.AnalyzedRoom.Id.ToString());
+            foreach (Element element in _ElementSeeker.Walls)
+            {
+                string value = "";
+                if (element.LookupParameter(_parameterNameOfRoomNymber) != null)
+                {
+                    value = element.LookupParameter(_parameterNameOfRoomNymber).AsString();
+                }
+                element.LookupParameter(_parameterNameOfRoomNymber)?.Set(value + roomData);
+            }
+            foreach (Element element in _ElementSeeker.Floors)
+            {
+                string value = "";
+                if (element.LookupParameter(_parameterNameOfRoomNymber) != null)
+                {
+                    value = element.LookupParameter(_parameterNameOfRoomNymber).AsString();
+                }
+                element.LookupParameter(_parameterNameOfRoomNymber)?.Set(value + roomData);
+            }
+            foreach (var pair in _ElementSeeker.DoorsInWalls)
+            {
+                foreach (Element element in pair.Value)
+                {
+                    string value = "";
+                    if (element.LookupParameter(_parameterNameOfRoomNymber) != null)
+                    {
+                        value = element.LookupParameter(_parameterNameOfRoomNymber).AsString();
+                    }
+                    element.LookupParameter(_parameterNameOfRoomNymber)?.Set(value + roomData);
+                }
+            }
+
         }
     }
 }

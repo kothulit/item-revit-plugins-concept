@@ -15,6 +15,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
     /// </summary>
     internal class Sculptor
     {
+        
         /// <summary>
         /// Определение принадлежности перекрытия к помещению с допуском. Допуском является расстояние
         /// от помещения до верхней грани перекрытия
@@ -83,6 +84,8 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         /// <returns></returns>
         private static bool IsLineAndPlaneIntersect(Line line, Plane plane, double zAcceptability)
         {
+            if (line == null) return false;
+            if (plane == null) return false;
             if ((Math.Abs(plane.Origin.Z - line.Tessellate()[0].Z) < zAcceptability) ||
                 (Math.Abs(plane.Origin.Z - line.Tessellate()[1].Z) < zAcceptability))
             {

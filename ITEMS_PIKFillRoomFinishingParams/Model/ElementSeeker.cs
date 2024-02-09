@@ -49,8 +49,6 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 return _DoorsInWalls;
             }
         }
-        //Название параметра элемента, куда записывает номер помещения
-        private string paramerNameOfRoomNymber = "Плагин_Номер помещения";
         //Коллекторы стен и перекрытий в проекте. Используются при определении ближайших к помещению элементов
         //через фильтр по пересечению баундинг боксов. Далее эти элементы анализируются на принадлежность к помещению
         private FilteredElementCollector _wallCoolector;
@@ -110,7 +108,6 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 if (isFinishing)
                 {
                     wallsResualt.Add(element);
-                    element.LookupParameter(paramerNameOfRoomNymber)?.Set(AnalyzedRoom.Number.ToString());
                 }
             }
             foreach (Element element in _floors)
@@ -119,7 +116,6 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 if (isFinishing)
                 {
                     floorsResualt.Add(element);
-                    element.LookupParameter(paramerNameOfRoomNymber)?.Set(AnalyzedRoom.Number.ToString());
                 }
             }
 
