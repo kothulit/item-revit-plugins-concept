@@ -81,6 +81,18 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             try
             {
                 _ElementSeeker = new ElementSeeker(document, room, geometryTolerance);
+
+                //Очистка записей в элементах отделки и дверях
+                foreach (Element element in _ElementSeeker.Walls) ClearFinishingElementParams(element);
+                foreach (Element element in _ElementSeeker.Floors) ClearFinishingElementParams(element);
+                foreach (var pair in _ElementSeeker.DoorsInWalls)
+                {
+                    foreach (Element element in pair.Value) ClearFinishingElementParams(element);
+                }
+
+                //Очистка парметров помещения
+                ClearRoomParams(_ElementSeeker.AnalyzedRoom);
+
                 if (_ElementSeeker == null)
                 {
                     _IsOk = false;
@@ -109,7 +121,6 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 }
 
                 WtiteFinishingData();
-                WriteRoomInElements(); //DEBUG!!! для проверки правильности определения элемента в помищении
             }
             catch (Exception ex)
             {
@@ -121,17 +132,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         {
             try
             {
-                //Очистка записей в элементах отделки и дверях
-                foreach (Element element in _ElementSeeker.Walls) ClearFinishingElementParams(element);
-                foreach (Element element in _ElementSeeker.Floors) ClearFinishingElementParams(element);
-                foreach (var pair in _ElementSeeker.DoorsInWalls)
-                {
-                    foreach (Element element in pair.Value) ClearFinishingElementParams(element);
-                }
-
-                //Очистка парметров помещения
                 Element room = _ElementSeeker.AnalyzedRoom;
-                ClearRoomParams(room);
                 foreach (KeyValuePair<string, FinishingData> keyValuePair in _roomFinishingData)
                 {
                     if (keyValuePair.Value.Name != "")
@@ -141,6 +142,9 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                         room.LookupParameter(keyValuePair.Value.ValueParameter)?.Set(keyValuePair.Value.Value);
                     }
                 }
+
+                //Назначение принадлежности
+                WriteRoomInElements(); //DEBUG!!! для проверки правильности определения элемента в помищении
             }
             catch (Exception ex)
             {
@@ -167,6 +171,8 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 if (keyValuePair.Value.MarkParameter != "") room.LookupParameter(keyValuePair.Value.MarkParameter)?.Set("");
                 if (keyValuePair.Value.ValueParameter != "") room.LookupParameter(keyValuePair.Value.ValueParameter)?.Set(0);
             }
+            //Удаление старых ошибок
+            room.LookupParameter(_errorParam)?.Set("");
         }
         private void WriteFinishingParamsFromWalls()
         {
@@ -197,6 +203,15 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                     string plinthType = wallType.LookupParameter(_wallParamNamePlinthTypeName)?.AsString();
                     string plinthMark = wallType.LookupParameter(_wallParamNamePlinthTypeMark)?.AsString();
                     double plinthValue = wall.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH).AsDouble() * 304.8; //Перевод в миллиметры
+                    //Вычитатние дверей
+                    if (_ElementSeeker.DoorsInWalls.Keys.Contains(wall.Id.IntegerValue))
+                    {
+                        foreach (Element door in _ElementSeeker.DoorsInWalls[wall.Id.IntegerValue])
+                        {
+                            double doorWidth = door.get_Parameter(BuiltInParameter.FURNITURE_WIDTH).AsDouble() * 304.8; //_ElementSeeker.Document.GetElement(door.GetTypeId())
+                            plinthValue -= doorWidth;
+                        }
+                    }
 
                     if (finishingType != null)
                         if (!_roomFinishingData[finishingGroupe].Name.Contains(finishingType)) _roomFinishingData[finishingGroupe].Name += finishingType;
@@ -217,6 +232,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                     if (plinthMark != null)
                         if (!_roomFinishingData["ОТД_Полы_Отделка_Плинтус"].Mark.Contains(plinthMark))
                             _roomFinishingData["ОТД_Полы_Отделка_Плинтус"].Mark += " " + plinthMark;
+
                     _roomFinishingData["ОТД_Полы_Отделка_Плинтус"].Value += plinthValue;
                 }
             }
@@ -365,7 +381,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         private void ShowParameterValueErrorDialog(Element element, Exception exception) //!!! Привести к одному методу
         {
             string elementText = "ID элемента: " + element.Id.ToString();
-            string exceptionText = exception.Source.ToString() + exception.Message;
+            string exceptionText = " Источник: " + exception.StackTrace + " Ошибка: " + exception.Message;
             //TaskDialog.Show("ОШИБКА! Исключение", exceptionText + "\n" + elementText); //!!! Пока  не вызывать окно ошибки
             //Clipboard.SetText(element.Id.ToString()); //!!! Пока  не вызывать окно ошибки
             string value = "";

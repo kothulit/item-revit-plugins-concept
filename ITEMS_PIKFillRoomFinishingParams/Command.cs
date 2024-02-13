@@ -53,7 +53,7 @@ namespace ITEMS_PIKFillRoomFinishingParams
                         if (isOk) isOk = writer.IsOk;
                     }
 
-                    if (isOk)
+                    if (!isOk)
                     {
                         TaskDialog.Show("ОШИБКА!", "Плагин закончил работу с ошибками.\r\n" +
                             "Проверьте наличие и значения параметра \"Плагин_Ошибки в отделке\" в экземплярах Помещений, Перекрытий, Потолков, Дверей и Стен \r\n" +
