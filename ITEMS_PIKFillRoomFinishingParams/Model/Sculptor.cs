@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using Autodesk.Revit.DB.Architecture;
 using Microsoft.SqlServer.Server;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
+using System.Threading;
 
 namespace ITEMS_PIKFillRoomFinishingParams.Model
 {
@@ -15,7 +17,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
     /// </summary>
     internal class Sculptor
     {
-        
+
         /// <summary>
         /// Определение принадлежности перекрытия к помещению с допуском. Допуском является расстояние
         /// от помещения до верхней грани перекрытия
@@ -26,15 +28,12 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         /// <returns></returns>
         public static bool IsFloorRelateToRoom(Element floor, Element room, double offset)
         {
-            Plane floorPlane = GetPlaneFromPlanarElement(floor);
             List<Line> roomLines = VerticalEdgesFromRoom(room);
             foreach (Line line in roomLines)
             {
-                if (IsLineAndPlaneIntersect(line, floorPlane, offset))
-                {
-                    return true;
-                }
+                if (IsLineAndElementIntersect(line, floor, offset)) return true;
             }
+
             return false;
         }
 
@@ -43,19 +42,19 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         /// </summary>
         /// <param name="element"></param>
         /// <returns></returns>
-        private static Plane GetPlaneFromPlanarElement(Element element)
-        {
-            Plane plane;
-            GeometryElement geometry = element.get_Geometry(new Options());
-            GeometryObject geometryObject = geometry.First();
-            Solid solid = geometryObject as Solid;
-            foreach (PlanarFace planarFace in solid.Faces)
-            {
-                plane = (Plane)planarFace.GetSurface();
-                if (plane.Normal.IsAlmostEqualTo(new XYZ(0, 0, 1))) return plane;
-            }
-            return null;
-        }
+        //private static Plane GetPlaneFromPlanarElement(Element element)
+        //{
+        //    Plane plane;
+        //    GeometryElement geometry = element.get_Geometry(new Options());
+        //    GeometryObject geometryObject = geometry.First();
+        //    Solid solid = geometryObject as Solid;
+        //    foreach (PlanarFace planarFace in solid.Faces)
+        //    {
+        //        plane = (Plane)planarFace.GetSurface();
+        //        if (plane.Normal.IsAlmostEqualTo(new XYZ(0, 0, 1))) return plane;
+        //    }
+        //    return null;
+        //}
 
         /// <summary>
         /// Получение вертикальных отрезков на каждом углу помещения.
@@ -69,29 +68,58 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             foreach (Edge edge in solid.Edges)
             {
                 Line line = (Line)edge.AsCurve();
-                if (line.Direction.IsAlmostEqualTo(new XYZ(0, 0, 1)) || line.Direction.IsAlmostEqualTo(new XYZ(0, 0, -1))) lineList.Add(line); 
+                if (line.Direction.IsAlmostEqualTo(new XYZ(0, 0, 1)) || line.Direction.IsAlmostEqualTo(new XYZ(0, 0, -1)))
+                {
+                    lineList.Add(line);
+                }
             }
             return lineList;
         }
 
         /// <summary>
-        /// Определение пересекает ли горизонтальную плоскость данная вертикальная линия,
-        /// удленненая с обоих концов на zAcceptability футов,
+        /// Определение пересекает ли элемент удлененная линия 
         /// </summary>
         /// <param name="line"></param>
         /// <param name="plane"></param>
         /// <param name="zAcceptability"></param>
         /// <returns></returns>
-        private static bool IsLineAndPlaneIntersect(Line line, Plane plane, double zAcceptability)
+        private static bool IsLineAndElementIntersect(Line line, Element element, double zAcceptability = 0) //DEBUG!!! смещение по z по не учитывается
         {
-            if (line == null) return false;
-            if (plane == null) return false;
-            if ((Math.Abs(plane.Origin.Z - line.Tessellate()[0].Z) < zAcceptability) ||
-                (Math.Abs(plane.Origin.Z - line.Tessellate()[1].Z) < zAcceptability))
+            XYZ topPoint;
+            XYZ bottomPoint;
+            if (line.Direction.IsAlmostEqualTo(new XYZ(0, 0, 1)))
             {
-                return true;
+                bottomPoint = line.GetEndPoint(0);
+                topPoint = line.GetEndPoint(1);
+            }
+            else
+            {
+                bottomPoint = line.GetEndPoint(1);
+                topPoint = line.GetEndPoint(0);
+            }
+            bottomPoint -= new XYZ(0, 0, zAcceptability);
+            topPoint += new XYZ(0, 0, zAcceptability);
+
+            Line newLine = Line.CreateBound(bottomPoint, topPoint);
+
+            GeometryElement solidList = element.get_Geometry(new Options());
+            if (solidList != null)
+            {
+                foreach (GeometryObject geometry in solidList)
+                {
+                    if (geometry.GetType() == typeof(Solid))
+                    {
+                        try
+                        {
+                            SolidCurveIntersection result = ((Solid)geometry).IntersectWithCurve(newLine, new SolidCurveIntersectionOptions());
+                            int segments = result.SegmentCount;
+                            if (segments > 0) return true;
+                        }
+                        catch { } //DEBUG!!! Плохо...
+                    }
+                }
             }
             return false;
-        } 
+        }
     }
 }

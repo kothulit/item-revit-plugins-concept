@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Xml.Linq;
@@ -208,7 +209,8 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                     {
                         foreach (Element door in _ElementSeeker.DoorsInWalls[wall.Id.IntegerValue])
                         {
-                            double doorWidth = door.get_Parameter(BuiltInParameter.FURNITURE_WIDTH).AsDouble() * 304.8; //_ElementSeeker.Document.GetElement(door.GetTypeId())
+                            double doorWidth = _ElementSeeker.Document.GetElement(door.GetTypeId()).
+                                get_Parameter(BuiltInParameter.FURNITURE_WIDTH).AsDouble() * 304.8; //_ElementSeeker.Document.GetElement(door.GetTypeId())
                             plinthValue -= doorWidth;
                         }
                     }

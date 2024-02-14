@@ -72,8 +72,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
             }
             set
             {
-                _GeometryTolerance = value;
-                InspectGeometry();
+                _GeometryTolerance = value; 
             }
 
         }
@@ -83,7 +82,9 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         {
             Document = document;
             AnalyzedRoom = room;
+            int roomId = room.Id.IntegerValue; //DEBUG!!!
             GeometryTolerance = geometryTolerance;
+            InspectGeometry();
         }
 
         /// <summary>
@@ -132,12 +133,6 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         /// <returns></returns>
         private void SetIntersectedWalls()
         {
-            //Проверка на геометрическое пересечение и добавление в список таких стен
-            foreach (Element wall in _wallCoolector.ToElements())
-            {
-                _walls.Add(wall);
-            }
-
             //Добавление в список стен ограничивающиех помещение
             List<int> intIds = new List<int>();
             foreach (List<BoundarySegment> boundarySegmentList in AnalyzedRoom.GetBoundarySegments(new SpatialElementBoundaryOptions()))
@@ -160,26 +155,37 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 }
             }
 
+            ElementsComparer wallsComparer = new ElementsComparer();
+            //Проверка на геометрическое пересечение и добавление в список таких стен
+            foreach (Element wall in _wallCoolector.ToElements())
+            {
+                if(!_walls.Contains(wall, wallsComparer))
+                    _walls.Add(wall);
+            }
+
+
+
             //Поиск двере в стенах
+            List<Element> doorInRoom = _doorCoolector.ToElements().ToList();
             foreach (Element wall in _walls)
             {
-                if (_doorCoolector.Count() > 0)
+                if (doorInRoom.Count() > 0)
                 {
                     //Фильтруем коллектор через пересецение BBox
                     Outline outline = new Outline(wall.get_BoundingBox(null).Min, wall.get_BoundingBox(null).Max);
-                    BoundingBoxIntersectsFilter boundingBoxIntersectsFilter = new BoundingBoxIntersectsFilter(outline, 0.15);                  
+                    BoundingBoxIntersectsFilter boundingBoxIntersectsFilter = new BoundingBoxIntersectsFilter(outline, 0.15);
 
-                    List<Element> doorInRoom = _doorCoolector.ToElements().ToList();
-
-                    foreach (Element door in doorInRoom)
+                    List<Element> doors = new List<Element>(doorInRoom);
+                    foreach (Element door in doors)
                     {
-                        if (IsIntersectedWithTolerance(door.get_BoundingBox(null), wall.get_BoundingBox(null), 0.15))
+                        if (IsIntersectedWithTolerance(door.get_BoundingBox(null), wall.get_BoundingBox(null), 0.1))
                         {
                             if (!_DoorsInWalls.Keys.Contains(wall.Id.IntegerValue))
                             {
                                 _DoorsInWalls.Add(wall.Id.IntegerValue, new List<Element>());
                             }
                             _DoorsInWalls[wall.Id.IntegerValue].Add(door); //DEBUG!!!
+                            doorInRoom.Remove(door);
                         }
                     }
                 }
@@ -228,14 +234,6 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                 OfClass(typeof(Wall)).
                 WherePasses(boundingBoxIntersectsFilter).
                 WherePasses(solidFilter);
-
-            _doorCoolector = new FilteredElementCollector(Document).
-                WhereElementIsNotElementType().
-                OfCategory(BuiltInCategory.OST_Doors).
-                OfClass(typeof(FamilyInstance)).
-                WherePasses(boundingBoxIntersectsFilter).
-                WherePasses(solidFilter);
-
         }
 
         /// <summary>
@@ -254,13 +252,13 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         private void SetDoorCollector()
         {
             Outline outline = new Outline(AnalyzedRoom.get_BoundingBox(null).Min, AnalyzedRoom.get_BoundingBox(null).Max);
-            BoundingBoxIntersectsFilter boundingBoxIntersectsFilter = new BoundingBoxIntersectsFilter(outline, 0.35);
+            BoundingBoxIsInsideFilter boundingBoxIsInsideFilter = new BoundingBoxIsInsideFilter(outline, 0.1); //DEBUG!!! отступ вручную задается, не хорошо
 
             _doorCoolector = new FilteredElementCollector(Document).
                 WhereElementIsNotElementType().
                 OfCategory(BuiltInCategory.OST_Doors).
                 OfClass(typeof(FamilyInstance)).
-                WherePasses(boundingBoxIntersectsFilter);
+                WherePasses(boundingBoxIsInsideFilter);
         }
 
         //Craete method to check are two bbox intersected with tolerance
