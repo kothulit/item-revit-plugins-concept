@@ -157,6 +157,7 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
         {
             WriteFinishingParamsFromWalls();
             WriteFinishingParamsFromFloors();
+            SetDashToEmpty();
         }
 
         private void ClearFinishingElementParams(Element element)
@@ -283,6 +284,18 @@ namespace ITEMS_PIKFillRoomFinishingParams.Model
                     ShowParameterValueErrorDialog(floor, ex);
                 }
             }
+        }
+
+        /// <summary>
+        /// Проставляет черточки в пустых после записи значениях 
+        /// </summary>
+        private void SetDashToEmpty()
+        {
+                foreach (KeyValuePair<string, FinishingData> keyValuePair in _roomFinishingData)
+                {
+                    if (keyValuePair.Value.Name == "") keyValuePair.Value.Name = "-";
+                    if (keyValuePair.Value.Mark == "") keyValuePair.Value.Mark = "-";
+                }
         }
 
         private bool CheckWallParametersIsOk(Element element)
